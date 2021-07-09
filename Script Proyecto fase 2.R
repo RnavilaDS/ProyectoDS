@@ -4,6 +4,7 @@ library(tidyverse)
 library(readxl)
 library(skimr)
 library(propagate)
+library(nortest)
 options (scipen = 999) #Permite mostrar decimales
 # BD ----------------------------------------------------------------------
 
@@ -43,29 +44,32 @@ datos <- datos %>%
   filter(!is.na(FECHA))##Elimina primera fila de N/A
 retornos <- retornos %>% 
   filter(!is.na(FECHA))
+retornos <- retornos %>% 
+  filter(!is.na(IPSA))
+#retornos <- retornos %>% 
+  #mutate(IPSA = IPSA*100)
+#Eliminar retorno de fecha 27-05-2016 debido a que no existe información y afecta la media
+
 #Apertura la tabla de datos(Precios) entre antes de la pandemia y post pandemia
 
 
+
 datos_pre_pandemia <- datos %>% 
-  filter(is.na(Casos)) %>% 
+  filter(FECHA < "2020-03-13") %>% 
   dplyr::select(nemo_seleccionado) 
   
 
 datos_post_pandemia <- datos %>% 
-  filter(!is.na(Casos)) %>% 
+  filter(FECHA >="2020-03-13") %>% 
   dplyr::select(nemo_seleccionado)
   
 #Apertura la tabla de retornos entre antes de la pandemia y post pandemia
 retornos_pre_pandemia <- retornos %>% 
-  filter(is.na(Casos)) %>% 
+  filter(FECHA < "2020-03-12") %>% 
   dplyr::select(nemo_seleccionado)
 
-
-
-
-
 retornos_post_pandemia <- retornos %>% 
-  filter(!is.na(Casos)) %>% 
+  filter(FECHA >= "2020-03-12") %>% 
   dplyr::select(nemo_seleccionado)
   
 
@@ -83,7 +87,7 @@ retornos_agrupado_post <- mutate(retornos_agrupado_post, RETORNO = RETORNO*100)
 retornos_agrupado_pre <- retornos_agrupado_pre %>% 
   dplyr::left_join( grupos, by = c("NEMO"="nemo"))
 #Reemplaza N/A de nueva columna de grupo por el texto SIN CLASIFICACIón
-
+skim(retornos_agrupado_pre)
 retornos_agrupado_pre <- retornos_agrupado_pre %>% 
   mutate(grupo = replace_na(grupo, "SIN CLASIFICACION")) 
 
@@ -121,8 +125,192 @@ ggplot(retornos_post_pandemia, aes(x = FECHA,y = BCHILE*100)) +
   geom_point()
 
 ggplot(retornos_agrupado_post, aes(x = FECHA, y = RETORNO, color= NEMO) )+
-  geom_line()
+  geom_point()
 
+# Análisis descriptivo IPSA -----------------------------------------------
+
+skim(retornos$IPSA*100)
+skim(retornos$FECHA)
+#Al realizar el análisis descriptivo de la variable IPSA, desde el 03-06-2016 al 25-06-2021, en donde tenemos 265 observaciones sin datos perdidos, podemos observar que la información tiene una media de 0,0366%, con una desviación estandar de 3,06. Además en el histograma se puede observar que a partir del P50 se concentran los datos, obteniendo como resultado retornos positivos.
+skim(retornos$IPSA*100)
+ggplot(retornos, aes(x=FECHA, y = retornos$IPSA*100)) +
+  geom_line()
+ggplot(retornos, aes( y = retornos$IPSA*100)) +
+  geom_boxplot()
+ggplot(retornos, aes( x = retornos$IPSA*100)) +
+  geom_density() +
+  geom_histogram() 
+  
+  
+df <- tibble(boxplot.stats(retornos$IPSA*100))
+view(df)
+retornos
+#Al realizar una exploración visual, podemos observar que los retornos de nuestra variable IPSA distribuyen normal, se realizará un test para aceptar o no la hipótesis nula realizando un test
+lillie.test(retornos$IPSA)
+#Al realizar un test de normalidad lillie.test de la variable ipsa, podemos observar que el p-value = 0.00000001918 es menor a 0,05 lo que implica que no existe evidencia significativa para aceptar la hipótesis nula de supuesto de normalidad.
+#Para corroborar se utiliza la librería de R -  Propagete en la cual podemos observar que el IPSA distribuye T
+######################### IPSA PRE -----------------
+skim(retornos_pre_pandemia$IPSA*100)
+#Al realizar el análisis descriptivo de la variable IPSA, desde en el escenario 2, en donde tenemos 197 observaciones sin datos perdidos, podemos observar que la información tiene una media de 0,035%, con una desviación estandar de 2.05. Además en el histograma se puede observar que a partir del P50 se concentran los datos, obteniendo como resultado retornos positivos.
+ggplot(retornos_pre_pandemia, aes(x=FECHA, y = retornos_pre_pandemia$IPSA*100)) +
+  geom_line()
+ggplot(retornos_pre_pandemia, aes( y = retornos_pre_pandemia$IPSA*100)) +
+  geom_boxplot()
+ggplot(retornos_pre_pandemia, aes( x = retornos_pre_pandemia$IPSA*100)) +
+  geom_histogram()
+#Al realizar una exploración visual, podemos observar que los retornos de nuestra variable IPSA distribuyen normal, se realizará un test para aceptar o no la hipótesis nula realizando un test
+lillie.test(retornos_pre_pandemia$IPSA*100)
+#Al realizar un test de normalidad lillie.test de la variable ipsa, podemos observar que el p-value = 0.00000001918 es menor a 0,05 lo que implica que no existe evidencia significativa para aceptar la hipótesis nula de supuesto de normalidad.
+#Para corroborar se utiliza la librería de R -  Propagete en la cual podemos observar que el IPSA distribuye T
+
+######################### IPSA POST -----------------
+
+skim(retornos_post_pandemia$IPSA*100)
+ggplot(retornos_post_pandemia, aes(x=FECHA, y = retornos_post_pandemia$IPSA*100)) +
+  geom_line()
+ggplot(retornos_post_pandemia, aes( y = retornos_post_pandemia$IPSA*100)) +
+  geom_boxplot()
+boxplot.stats(retornos_post_pandemia$IPSA*100)
+
+ggplot(retornos_post_pandemia, aes( x = retornos_post_pandemia$IPSA*100)) +
+  geom_histogram()
+lillie.test(retornos_post_pandemia$IPSA*100)
+
+
+######################### COBRE -----------------
+
+# retornos cobre ----------------------------------------------------------
+
+
+
+skim(retornos$Cobre*100)
+
+mean(retornos$Cobre*100, na.rm = TRUE)
+retornos %>% 
+  
+  mutate(Cobre = replace_na(Cobre,mean(retornos$Cobre*100, na.rm = TRUE) )) %>% 
+skim(Cobre)
+
+which(is.na(retornos$Cobre))
+retornos[247,]$Cobre
+
+
+
+ggplot(retornos, aes(x=FECHA, y = retornos$Cobre*100)) +
+  geom_line()
+ggplot(retornos, aes( y = retornos$Cobre*100)) +
+  geom_boxplot()
+boxplot.stats(retornos$Cobre*100)
+
+ggplot(retornos, aes( x = retornos$Cobre*100)) +
+  geom_histogram()
+lillie.test(retornos$Cobre*100)
+
+# retornos cobre PRE----------------------------------------------------------
+
+skim(retornos_pre_pandemia$Cobre*100)
+
+ggplot(retornos_pre_pandemia, aes(x=FECHA, y = retornos_pre_pandemia$Cobre*100)) +
+  geom_line()
+ggplot(retornos_pre_pandemia, aes( y = retornos_pre_pandemia$Cobre*100)) +
+  geom_boxplot()
+boxplot.stats(retornos_pre_pandemia$Cobre*100)
+
+ggplot(retornos, aes( x = retornos$Cobre*100)) +
+  geom_histogram()
+lillie.test(retornos_pre_pandemia$Cobre*100)
+
+
+# retornos cobre POST----------------------------------------------------------
+
+
+skim(retornos_post_pandemia$Cobre*100)
+
+ggplot(retornos, aes(x=FECHA, y = retornos$Cobre*100)) +
+  geom_line()
+ggplot(retornos, aes( y = retornos$Cobre*100)) +
+  geom_boxplot()
+boxplot.stats(retornos$Cobre*100)
+
+ggplot(retornos, aes( x = retornos$Cobre*100)) +
+  geom_histogram()
+lillie.test(retornos$Cobre*100)
+
+######################### VIX -----------------
+
+skim(retornos$VIX*100)
+summary(retornos$VIX*100)
+
+ggplot(retornos, aes(x=FECHA, y = retornos$VIX)) +
+  geom_line()
+ggplot(retornos, aes( y = retornos$Cobre*100)) +
+  geom_boxplot()
+boxplot.stats(retornos$Cobre*100)
+
+ggplot(retornos, aes( x = retornos$Cobre*100)) +
+  geom_histogram()
+lillie.test(retornos$Cobre*100)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+skim(retornos_pre_pandemia$IPSA*100)
+ggplot(retornos_pre_pandemia, aes(x=FECHA, y = retornos_pre_pandemia$IPSA*100)) +
+  geom_line()
+ggplot(retornos_pre_pandemia, aes(x=FECHA, y = retornos_pre_pandemia$IPSA*100)) +
+  geom_boxplot()
+boxplot(retornos_pre_pandemia$IPSA)
+boxplot.stats(retornos_pre_pandemia$IPSA*100)
+
+ggplot(retornos_pre_pandemia, aes( x = retornos_pre_pandemia$IPSA*100)) +
+  geom_histogram()
+
+
+fitDistr(retornos$IPSA*100)
+fitDistr(retornos_post_pandemia$IPSA*100)
+fitDistr(retornos_pre_pandemia$IPSA*100)
+
+df_retornos <- data.frame(grupo = "retornos",skim(retornos)) 
+df_retornos <- df_retornos %>% 
+    na.omit(df_retornos) %>% 
+  
+aux <- data.frame(grupo = "post",skim(retornos_post_pandemia))  
+
+df_retornos <-  rbind(df_retornos, aux)
+
+aux <- data.frame(grupo = "pre",skim(retornos_pre_pandemia))  
+df_retornos <-  rbind(df_retornos, aux)
+
+write.csv2(df_retornos, "df_retornos.csv")
+
+df_retornos <- df_retornos %>% 
+  filter(skim_variable == "IPSA" | skim_variable ==  "USDCLP" | skim_variable ==  "Oro" | skim_variable ==  "VIX" | skim_variable ==  "Cobre")
+
+df_retornos %>% 
+  arrange(skim_variable) %>% 
+  View()
 # Matriz de correlación ---------------------------------------------------
 str(retornos_pre_pandemia)
 
